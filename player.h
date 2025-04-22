@@ -3,11 +3,13 @@
 
 #include <QPixmap>
 #include <QWidget>
-#include <QList>
+#include <QList> // Ajout pour QList
 #include "constants.h"
 
 class QPaintEvent;
 class QTimer;
+// QPoint n'a pas besoin d'être forward-déclaré si on inclut <QPoint> dans le .cpp,
+// mais on peut le faire pour être propre. class QPoint;
 
 class Player : public QWidget
 {
@@ -18,29 +20,38 @@ public:
 
     explicit Player(QWidget* parent = nullptr);
 
+    // --- Interface Publique ---
     void startMoving(Direction direction);
     void stopMoving();
-    void jump(); // Nouvelle méthode pour initier le saut
+    void jump(); // Ajouté
     Direction getCurrentDirection() const;
     void setObstacles(const QList<QWidget*>& obstacles);
 
 protected:
+    // --- Événements Surchargés ---
     void paintEvent(QPaintEvent* event) override;
 
 private slots:
-    void updateState();
+    // --- Slots Privés ---
+    void updateState(); // Gère toute la logique de mise à jour
 
 private:
-    // Helpers
+    // --- Méthodes Helper Privées ---
     void setCurrentFrame(int frame);
-    QRect getCollisionRect(const QPoint& futurePos) const; // Calcule le rect de collision à une position donnée
-    bool checkCollision(const QRect& futureCollisionRect, QWidget*& collidedObstacle) const; // Modifiée pour retourner l'obstacle
-    void applyGravityAndVerticalMovement(); // Nouvelle méthode pour gérer la physique verticale
-    void resolveVerticalCollision(QWidget* obstacle, int& nextY); // Gère l'atterrissage/cogner
-    void resolveHorizontalCollision(QWidget* obstacle, int& nextX); // Gère collision mur
-    bool isOnGround() const; // Vérifie si le joueur est sur une surface solide
+    // Signature corrigée/ajoutée
+    QRect getCollisionRect(const QPoint& futureTopLeft) const;
+    // Signature corrigée pour retourner l'obstacle
+    bool checkCollision(const QRect& futureCollisionRect, QWidget*& collidedObstacle) const;
+    // Ajouté
+    void applyGravityAndVerticalMovement();
+    // Ajouté
+    void resolveVerticalCollision(QWidget* obstacle, int& nextY);
+    // Ajouté
+    void resolveHorizontalCollision(QWidget* obstacle, int& nextX);
+    // Ajouté
+    bool isOnGround() const;
 
-    // Membres existants
+    // --- Variables Membres ---
     int m_currentFrame;
     int m_frameWidth;
     int m_frameHeight;
@@ -53,9 +64,9 @@ private:
     int m_speed;
     QList<QWidget*> m_obstacles;
 
-    // --- AJOUT : Membres pour le saut/gravité ---
-    bool m_isJumpingOrFalling; // True si en l'air
-    double m_velocityY;        // Vitesse verticale actuelle
+    // --- Membres Ajoutés pour Saut/Gravité ---
+    bool m_isJumpingOrFalling;
+    double m_velocityY;
 };
 
 #endif // PLAYER_H
