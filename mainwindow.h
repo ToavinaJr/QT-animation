@@ -2,13 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "player.h"
+#include "player.h" // Pour Player::Direction
 
 QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
+namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
+
+class QKeyEvent; // Forward declaration
 
 class MainWindow : public QMainWindow
 {
@@ -16,10 +16,14 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow(QWidget *parent = nullptr);
-    Player* mario = nullptr;
     ~MainWindow();
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+    void keyReleaseEvent(QKeyEvent *event) override;
 
 private:
     Ui::MainWindow *ui;
+    Player* m_player;
 };
 #endif // MAINWINDOW_H
