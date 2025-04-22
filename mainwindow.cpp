@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "player.h" // Implémentation de Player est nécessaire ici
+#include "player.h"
 #include <QKeyEvent>
+#include <QWidget> // Inclusion pour créer les obstacles
+#include <QPalette> // Pour colorer les obstacles facilement
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -10,35 +12,76 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    m_player = new Player(this); // 'this' est le parent
+    setMinimumSize(600, 300); // Augmenter un peu la taille pour les obstacles
 
-    // Positionnement initial du joueur
-    int initialX = (width() - m_player->width()) / 2;
-    int initialY = height() - m_player->height() - 20; // Un peu au-dessus du bas
-    if (initialX < 0) initialX = 0; // Sécurité si fenêtre trop petite au départ
-    if (initialY < 0) initialY = 0;
-    m_player->move(initialX, initialY);
+    // 1. Créer le joueur d'abord pour connaître sa taille/position initiale
+    m_player = new Player(this);
+    int playerInitialY = height() - m_player->height() - 20;
+    int playerInitialX = 50; // Commencer à gauche
+    m_player->move(playerInitialX, playerInitialY);
 
-    // Important pour capturer les touches
+    // 2. Créer les obstacles
+    setupObstacles();
+
+    // 3. Informer le joueur des obstacles existants
+    m_player->setObstacles(m_obstaclesList);
+
+    // Rendre le joueur visible (les obstacles sont rendus visibles dans setupObstacles)
+    m_player->show(); // Important si non défini comme centralWidget
+
+    // Focus pour les touches
     setFocusPolicy(Qt::StrongFocus);
     setFocus();
-
-    setMinimumSize(400, 200); // Taille minimale fenêtre
-    // Note: m_player n'est PAS setCentralWidget pour permettre move()
 }
 
 MainWindow::~MainWindow()
 {
-    // m_player est géré par Qt via la relation parent/enfant
+    // Les obstacles et le joueur sont enfants de MainWindow,
+    // Qt gère leur suppression.
     delete ui;
 }
 
+void MainWindow::setupObstacles()
+{
+    // Assurez-vous que la liste est vide si cette méthode est appelée plusieurs fois
+    // qDeleteAll(m_obstaclesList); // Supprime les anciens widgets si nécessaire
+    // m_obstaclesList.clear();
+
+    // Obstacle 1 : Un mur simple
+    QWidget* wall = new QWidget(this);
+    wall->setFixedSize(30, 150);
+    // Positionner par rapport au bas de la fenêtre et à la position Y du joueur
+    wall->move(300, height() - wall->height() - 20);
+    // wall->setStyleSheet("background-color: brown; border: 1px solid black;"); // Style simple
+    QPalette pal = wall->palette();
+    pal.setColor(QPalette::Window, Qt::darkGray); // Couleur de fond
+    wall->setAutoFillBackground(true);
+    wall->setPalette(pal);
+    wall->show(); // Rendre l'obstacle visible
+    m_obstaclesList.append(wall); // Ajouter à la liste
+
+    // Obstacle 2 : Une plateforme plus basse
+    QWidget* platform = new QWidget(this);
+    platform->setFixedSize(100, 20);
+    platform->move(450, height() - platform->height() - 60); // Un peu plus haut
+    // platform->setStyleSheet("background-color: green;");
+    pal.setColor(QPalette::Window, Qt::darkGreen);
+    platform->setAutoFillBackground(true);
+    platform->setPalette(pal);
+    platform->show();
+    m_obstaclesList.append(platform);
+}
+
+
+// keyPressEvent et keyReleaseEvent restent identiques
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     if (event->isAutoRepeat()) {
         event->ignore();
         return;
     }
+    // S'assurer que m_player existe avant de l'utiliser
+    if (!m_player) return;
 
     switch (event->key()) {
     case Qt::Key_Left:
@@ -50,7 +93,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         event->accept();
         break;
     default:
-        QMainWindow::keyPressEvent(event); // Passer aux autres gestionnaires
+        QMainWindow::keyPressEvent(event);
     }
 }
 
@@ -60,8 +103,9 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         event->ignore();
         return;
     }
+    // S'assurer que m_player existe avant de l'utiliser
+    if (!m_player) return;
 
-    // Vérifie si la touche relâchée correspond à la direction ACTUELLE du mouvement
     Player::Direction currentMoveDirection = m_player->getCurrentDirection();
 
     switch (event->key()) {
@@ -78,6 +122,6 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         event->accept();
         break;
     default:
-        QMainWindow::keyReleaseEvent(event); // Passer aux autres gestionnaires
+        QMainWindow::keyReleaseEvent(event);
     }
 }

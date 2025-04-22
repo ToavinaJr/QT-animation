@@ -2,9 +2,9 @@
 #include <QPainter>
 #include <QTimer>
 #include <QPaintEvent>
-#include <QRect>
+#include <QRect> // Inclusion pour QRect
 #include <QDebug>
-#include <QWidget> // Pour parentWidget()
+#include <QWidget>
 
 Player::Player(QWidget* parent)
     : QWidget(parent),
@@ -15,8 +15,9 @@ Player::Player(QWidget* parent)
     m_standingFrame(MARIO_STANDING_FRAME),
     m_animationTimer(new QTimer(this)),
     m_currentDirection(Direction::None),
-    m_facingDirection(Direction::Right), // Suppose que la frame 0 regarde à droite
+    m_facingDirection(Direction::Right),
     m_speed(MARIO_SPEED)
+// m_obstacles est initialisé par défaut (liste vide)
 {
     if (!m_spritesheet.load(":/images/mario.png")) {
         qWarning() << "ERREUR: Impossible de charger le spritesheet ':/images/mario.png'. Vérifiez le fichier de ressources (qrc).";
@@ -26,21 +27,22 @@ Player::Player(QWidget* parent)
     connect(m_animationTimer, &QTimer::timeout, this, &Player::updateState);
 }
 
+void Player::setObstacles(const QList<QWidget*>& obstacles) {
+    m_obstacles = obstacles;
+}
+
 void Player::startMoving(Direction direction) {
     if (direction == Direction::None) return;
-
     m_currentDirection = direction;
-    m_facingDirection = direction; // Met à jour la direction du regard
-
+    m_facingDirection = direction;
     if (!m_animationTimer->isActive()) {
         m_animationTimer->start(100);
     }
 }
 
 void Player::stopMoving() {
-    m_currentDirection = Direction::None; // Arrête le mouvement physique
+    m_currentDirection = Direction::None;
     m_animationTimer->stop();
-    // m_facingDirection n'est PAS modifié ici
     setCurrentFrame(m_standingFrame);
 }
 
@@ -48,8 +50,21 @@ Player::Direction Player::getCurrentDirection() const {
     return m_currentDirection;
 }
 
+// Fonction helper pour vérifier la collision avec les obstacles
+bool Player::checkCollision(const QRect& futureRect) const
+{
+    for (const QWidget* obstacle : m_obstacles) {
+        if (obstacle && obstacle->isVisible() && futureRect.intersects(obstacle->geometry())) {
+            // qDebug() << "Collision détectée avec un obstacle !";
+            return true; // Collision trouvée
+        }
+    }
+    return false; // Pas de collision
+}
+
+
 void Player::updateState() {
-    // 1. Mettre à jour la frame d'animation (seulement si en mouvement)
+    // 1. Mettre à jour la frame d'animation
     int firstAnimationFrame = (m_standingFrame == 0) ? 1 : 0;
     int numAnimatedFrames = (m_standingFrame == 0) ? m_totalFrames - 1 : m_totalFrames;
 
@@ -57,36 +72,105 @@ void Player::updateState() {
         int currentAnimatedFrameIndex = (m_currentFrame - firstAnimationFrame + 1) % numAnimatedFrames;
         m_currentFrame = firstAnimationFrame + currentAnimatedFrameIndex;
     } else {
-        m_currentFrame = m_standingFrame; // Assure la frame immobile si non en mouvement
+        m_currentFrame = m_standingFrame;
     }
 
-    // 2. Mettre à jour la position (si en mouvement)
+    // // 2. Calculer la prochaine position et vérifier les collisions AVANT de bouger
+    // if (m_currentDirection != Direction::None && parentWidget()) {
+    //     int currentX = x();
+    //     int currentY = y(); // Y ne change pas pour l'instant
+    //     int nextX = currentX;
+    //     int parentWidth = parentWidget()->width();
+
+    //     if (m_currentDirection == Direction::Left) {
+    //         nextX -= m_speed;
+    //         if (nextX < 0) nextX = 0; // Collision avec le bord gauche
+    //     } else if (m_currentDirection == Direction::Right) {
+    //         nextX += m_speed;
+    //         // Collision avec le bord droit
+    //         if (nextX + m_frameWidth > parentWidth) {
+    //             nextX = parentWidth - m_frameWidth;
+    //         }
+    //     }
+
+    //     // Créer le rectangle représentant la position future du joueur
+    //     QRect futureRect(nextX, currentY, m_frameWidth, m_frameHeight);
+
+    //     // Vérifier la collision avec les obstacles
+    //     if (!checkCollision(futureRect)) {
+    //         // Pas de collision détectée, on peut bouger
+    //         if (x() != nextX) { // Bouger seulement si la position change
+    //             move(nextX, currentY);
+    //         }
+    //     } else {
+    //         // Collision détectée avec un obstacle, ne pas bouger horizontalement
+    //         // On pourrait vouloir arrêter l'animation ici ou jouer un son, etc.
+    //         if (m_currentDirection != Direction::None) {
+    //             // Optionnel : arrêter l'animation si on bute contre un mur
+    //             // m_currentFrame = m_standingFrame;
+    //         }
+    //     }
+    // }
+
+    // // 3. Demander un redessin (toujours utile pour l'animation, même si on ne bouge pas)
+    // update();
+
+    // 2. Calculer la prochaine position et vérifier les collisions AVANT de bouger
     if (m_currentDirection != Direction::None && parentWidget()) {
-        int newX = x();
+        int currentX = x();
+        int currentY = y();
+        int nextX = currentX;
         int parentWidth = parentWidget()->width();
 
+        // Calcul de la position X future brute
         if (m_currentDirection == Direction::Left) {
-            newX -= m_speed;
-            if (newX < 0) newX = 0;
+            nextX -= m_speed;
+            if (nextX < 0) nextX = 0;
         } else if (m_currentDirection == Direction::Right) {
-            newX += m_speed;
-            if (newX + width() > parentWidth) newX = parentWidth - width();
+            nextX += m_speed;
+            if (nextX + m_frameWidth > parentWidth) {
+                nextX = parentWidth - m_frameWidth;
+            }
         }
-        move(newX, y());
+
+        // --- MODIFICATION : Calcul du rectangle de COLLISION ---
+        // Ce rectangle est plus petit que le widget, basé sur les marges
+        int collisionX = nextX + COLLISION_MARGIN_LEFT;
+        int collisionY = currentY + COLLISION_MARGIN_TOP; // Y ne change pas, mais on applique la marge
+        int collisionWidth = m_frameWidth - COLLISION_MARGIN_LEFT - COLLISION_MARGIN_RIGHT;
+        int collisionHeight = m_frameHeight - COLLISION_MARGIN_TOP - COLLISION_MARGIN_BOTTOM;
+
+        // S'assurer que la largeur/hauteur ne sont pas négatives si les marges sont trop grandes
+        if (collisionWidth < 1) collisionWidth = 1;
+        if (collisionHeight < 1) collisionHeight = 1;
+
+        QRect futureCollisionRect(collisionX, collisionY, collisionWidth, collisionHeight);
+        // --- FIN MODIFICATION ---
+
+        // Vérifier la collision en utilisant le rectangle de collision réduit
+        if (!checkCollision(futureCollisionRect)) { // Utilise futureCollisionRect !
+            // Pas de collision détectée, on peut bouger
+            if (x() != nextX) {
+                move(nextX, currentY); // On déplace toujours le WIDGET complet
+            }
+        } else {
+            // Collision détectée avec un obstacle, ne pas bouger horizontalement
+            if (m_currentDirection != Direction::None) {
+                // Optionnel : Geler l'animation sur la frame immobile
+                m_currentFrame = m_standingFrame;
+            }
+        }
     }
 
     // 3. Demander un redessin
     update();
 }
 
+
 void Player::setCurrentFrame(int frame) {
-    // Vérifie si la frame change pour éviter des update() inutiles
-    if (m_currentFrame != (frame % m_totalFrames)) {
-        m_currentFrame = frame % m_totalFrames;
-        update();
-    } else if (m_currentFrame != m_standingFrame && m_currentDirection == Direction::None) {
-        // Force la frame immobile si on s'arrête et qu'on n'y est pas déjà
-        m_currentFrame = m_standingFrame;
+    int targetFrame = frame % m_totalFrames;
+    if (m_currentFrame != targetFrame) {
+        m_currentFrame = targetFrame;
         update();
     }
 }
@@ -99,7 +183,6 @@ void Player::paintEvent(QPaintEvent* event) {
     QRect sourceRect(frameX, 0, m_frameWidth, m_frameHeight);
     QRect targetRect(0, 0, m_frameWidth, m_frameHeight);
 
-    // Utilise m_facingDirection pour décider de l'inversion
     bool flipHorizontally = (m_facingDirection == Direction::Left);
 
     if (flipHorizontally) {

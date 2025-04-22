@@ -3,10 +3,12 @@
 
 #include <QPixmap>
 #include <QWidget>
+#include <QList> // Ajout pour QList
 #include "constants.h"
 
 class QPaintEvent;
 class QTimer;
+// class QWidget; // Déjà inclus via <QWidget>
 
 class Player : public QWidget
 {
@@ -19,7 +21,10 @@ public:
 
     void startMoving(Direction direction);
     void stopMoving();
-    Direction getCurrentDirection() const; // Getter ajouté
+    Direction getCurrentDirection() const;
+
+    // Méthode pour recevoir la liste des obstacles
+    void setObstacles(const QList<QWidget*>& obstacles);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -29,6 +34,7 @@ private slots:
 
 private:
     void setCurrentFrame(int frame);
+    bool checkCollision(const QRect& futureRect) const; // Helper pour la collision
 
     int m_currentFrame;
     int m_frameWidth;
@@ -40,6 +46,8 @@ private:
     Direction m_currentDirection;
     Direction m_facingDirection;
     int m_speed;
+
+    QList<QWidget*> m_obstacles; // Liste des obstacles connus par le joueur
 };
 
 #endif // PLAYER_H
