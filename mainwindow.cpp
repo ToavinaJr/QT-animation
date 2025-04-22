@@ -2,8 +2,8 @@
 #include "ui_mainwindow.h"
 #include "player.h"
 #include <QKeyEvent>
-#include <QWidget> // Inclusion pour créer les obstacles
-#include <QPalette> // Pour colorer les obstacles facilement
+#include <QWidget>
+#include <QPalette>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -11,77 +11,58 @@ MainWindow::MainWindow(QWidget *parent)
     , m_player(nullptr)
 {
     ui->setupUi(this);
+    setMinimumSize(600, 300);
 
-    setMinimumSize(600, 300); // Augmenter un peu la taille pour les obstacles
-
-    // 1. Créer le joueur d'abord pour connaître sa taille/position initiale
     m_player = new Player(this);
-    int playerInitialY = height() - m_player->height() - 20;
-    int playerInitialX = 50; // Commencer à gauche
+    // Position initiale un peu plus haute pour tester la chute initiale
+    int playerInitialY = height() - m_player->height() - 150;
+    int playerInitialX = 50;
     m_player->move(playerInitialX, playerInitialY);
 
-    // 2. Créer les obstacles
     setupObstacles();
+    m_player->setObstacles(m_obstaclesList); // Doit être appelé APRES la création des obstacles
+    m_player->show();
 
-    // 3. Informer le joueur des obstacles existants
-    m_player->setObstacles(m_obstaclesList);
-
-    // Rendre le joueur visible (les obstacles sont rendus visibles dans setupObstacles)
-    m_player->show(); // Important si non défini comme centralWidget
-
-    // Focus pour les touches
     setFocusPolicy(Qt::StrongFocus);
     setFocus();
 }
 
-MainWindow::~MainWindow()
-{
-    // Les obstacles et le joueur sont enfants de MainWindow,
-    // Qt gère leur suppression.
-    delete ui;
-}
+MainWindow::~MainWindow() { delete ui; }
 
-void MainWindow::setupObstacles()
-{
-    // Assurez-vous que la liste est vide si cette méthode est appelée plusieurs fois
-    // qDeleteAll(m_obstaclesList); // Supprime les anciens widgets si nécessaire
-    // m_obstaclesList.clear();
-
-    // Obstacle 1 : Un mur simple
+void MainWindow::setupObstacles() {
+    // Obstacle 1: Mur
     QWidget* wall = new QWidget(this);
-    wall->setFixedSize(30, 150);
-    // Positionner par rapport au bas de la fenêtre et à la position Y du joueur
-    wall->move(300, height() - wall->height() - 20);
-    // wall->setStyleSheet("background-color: brown; border: 1px solid black;"); // Style simple
-    QPalette pal = wall->palette();
-    pal.setColor(QPalette::Window, Qt::darkGray); // Couleur de fond
-    wall->setAutoFillBackground(true);
-    wall->setPalette(pal);
-    wall->show(); // Rendre l'obstacle visible
-    m_obstaclesList.append(wall); // Ajouter à la liste
+    wall->setFixedSize(30, 100);
+    wall->move(300, height() - wall->height() - 20); // Au sol
+    QPalette palW = wall->palette();
+    palW.setColor(QPalette::Window, Qt::darkGray);
+    wall->setAutoFillBackground(true); wall->setPalette(palW); wall->show();
+    m_obstaclesList.append(wall);
 
-    // Obstacle 2 : Une plateforme plus basse
+    // Obstacle 2: Plateforme
     QWidget* platform = new QWidget(this);
     platform->setFixedSize(100, 20);
-    platform->move(450, height() - platform->height() - 60); // Un peu plus haut
-    // platform->setStyleSheet("background-color: green;");
-    pal.setColor(QPalette::Window, Qt::darkGreen);
-    platform->setAutoFillBackground(true);
-    platform->setPalette(pal);
-    platform->show();
+    platform->move(450, height() - platform->height() - 80); // En hauteur
+    QPalette palP = platform->palette();
+    palP.setColor(QPalette::Window, Qt::darkGreen);
+    platform->setAutoFillBackground(true); platform->setPalette(palP); platform->show();
     m_obstaclesList.append(platform);
+
+    // Obstacle 3: Sol (facultatif, le bas de la fenêtre sert de sol)
+    // QWidget* ground = new QWidget(this);
+    // ground->setFixedSize(width(), 20);
+    // ground->move(0, height() - ground->height());
+    // QPalette palG = ground->palette();
+    // palG.setColor(QPalette::Window, Qt::yellow); // Couleur différente pour le sol
+    // ground->setAutoFillBackground(true); ground->setPalette(palG); ground->show();
+    // m_obstaclesList.append(ground); // Ajouter si on veut un sol physique
 }
 
-
-// keyPressEvent et keyReleaseEvent restent identiques
-void MainWindow::keyPressEvent(QKeyEvent *event)
-{
-    if (event->isAutoRepeat()) {
+void MainWindow::keyPressEvent(QKeyEvent *event) {
+    if (event->isAutoRepeat() || !m_player) {
         event->ignore();
         return;
     }
-    // S'assurer que m_player existe avant de l'utiliser
-    if (!m_player) return;
 
     switch (event->key()) {
     case Qt::Key_Left:
@@ -92,19 +73,22 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         m_player->startMoving(Player::Direction::Right);
         event->accept();
         break;
+    // --- AJOUT : Touche pour sauter ---
+    case Qt::Key_Space: // Ou Qt::Key_Up si vous préférez
+        m_player->jump();
+        event->accept();
+        break;
+    // --- FIN AJOUT ---
     default:
         QMainWindow::keyPressEvent(event);
     }
 }
 
-void MainWindow::keyReleaseEvent(QKeyEvent *event)
-{
-    if (event->isAutoRepeat()) {
+void MainWindow::keyReleaseEvent(QKeyEvent *event) {
+    if (event->isAutoRepeat() || !m_player) {
         event->ignore();
         return;
     }
-    // S'assurer que m_player existe avant de l'utiliser
-    if (!m_player) return;
 
     Player::Direction currentMoveDirection = m_player->getCurrentDirection();
 
@@ -120,6 +104,10 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
             m_player->stopMoving();
         }
         event->accept();
+        break;
+    // Le relâchement de la touche de saut n'a généralement pas d'effet ici
+    case Qt::Key_Space: // Ou Qt::Key_Up
+        event->accept(); // Accepter l'événement même si on ne fait rien
         break;
     default:
         QMainWindow::keyReleaseEvent(event);
