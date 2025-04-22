@@ -75,46 +75,6 @@ void Player::updateState() {
         m_currentFrame = m_standingFrame;
     }
 
-    // // 2. Calculer la prochaine position et vérifier les collisions AVANT de bouger
-    // if (m_currentDirection != Direction::None && parentWidget()) {
-    //     int currentX = x();
-    //     int currentY = y(); // Y ne change pas pour l'instant
-    //     int nextX = currentX;
-    //     int parentWidth = parentWidget()->width();
-
-    //     if (m_currentDirection == Direction::Left) {
-    //         nextX -= m_speed;
-    //         if (nextX < 0) nextX = 0; // Collision avec le bord gauche
-    //     } else if (m_currentDirection == Direction::Right) {
-    //         nextX += m_speed;
-    //         // Collision avec le bord droit
-    //         if (nextX + m_frameWidth > parentWidth) {
-    //             nextX = parentWidth - m_frameWidth;
-    //         }
-    //     }
-
-    //     // Créer le rectangle représentant la position future du joueur
-    //     QRect futureRect(nextX, currentY, m_frameWidth, m_frameHeight);
-
-    //     // Vérifier la collision avec les obstacles
-    //     if (!checkCollision(futureRect)) {
-    //         // Pas de collision détectée, on peut bouger
-    //         if (x() != nextX) { // Bouger seulement si la position change
-    //             move(nextX, currentY);
-    //         }
-    //     } else {
-    //         // Collision détectée avec un obstacle, ne pas bouger horizontalement
-    //         // On pourrait vouloir arrêter l'animation ici ou jouer un son, etc.
-    //         if (m_currentDirection != Direction::None) {
-    //             // Optionnel : arrêter l'animation si on bute contre un mur
-    //             // m_currentFrame = m_standingFrame;
-    //         }
-    //     }
-    // }
-
-    // // 3. Demander un redessin (toujours utile pour l'animation, même si on ne bouge pas)
-    // update();
-
     // 2. Calculer la prochaine position et vérifier les collisions AVANT de bouger
     if (m_currentDirection != Direction::None && parentWidget()) {
         int currentX = x();
